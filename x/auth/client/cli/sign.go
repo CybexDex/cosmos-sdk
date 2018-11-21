@@ -5,6 +5,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 	"io/ioutil"
+	"os"
 
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/context"
@@ -21,6 +22,7 @@ const (
 	flagValidateSigs = "validate-signatures"
 	flagOffline      = "offline"
 	flagSigOnly      = "signature-only"
+	flagOutfile      = "output-document"
 )
 
 // GetSignCommand returns the sign command
@@ -51,6 +53,9 @@ recommended to set such parameters manually.`,
 	cmd.Flags().Bool(flagValidateSigs, false, "Print the addresses that must sign the transaction, "+
 		"those who have already signed it, and make sure that signatures are in the correct order.")
 	cmd.Flags().Bool(flagOffline, false, "Offline mode. Do not query local cache.")
+	cmd.Flags().StringP(flagOutfile, "O", "-",
+		"The document will be written to the given file. If - is used as file, "+
+			"document will  be printed to standard output")
 	return cmd
 }
 
@@ -104,7 +109,19 @@ func makeSignCmd(cdc *amino.Codec, decoder auth.AccountDecoder) func(cmd *cobra.
 		if err != nil {
 			return err
 		}
-		fmt.Printf("%s\n", json)
+
+		if viper.GetString(flagOutfile) == "-" {
+			fmt.Printf("%s\n", json)
+			return
+		}
+
+		fp, err := os.OpenFile(
+			viper.GetString(flagOutfile), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
+		if err != nil {
+			return err
+		}
+		defer fp.Close()
+		fmt.Fprintf(fp, "%s\n", json)
 		return
 	}
 }

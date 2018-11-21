@@ -28,61 +28,9 @@ func GetCmdCreateValidator(cdc *codec.Codec) *cobra.Command {
 				WithCodec(cdc).
 				WithAccountDecoder(authcmd.GetAccountDecoder(cdc))
 
-			amounstStr := viper.GetString(FlagAmount)
-			amount, err := sdk.ParseCoin(amounstStr)
+			cliCtx, txBldr, msg, err := BuildCreateValidatorMsg(cliCtx, txBldr)
 			if err != nil {
 				return err
-			}
-
-			valAddr, err := cliCtx.GetFromAddress()
-			if err != nil {
-				return err
-			}
-
-			pkStr := viper.GetString(FlagPubKey)
-			pk, err := sdk.GetConsPubKeyBech32(pkStr)
-			if err != nil {
-				return err
-			}
-
-			description := stake.NewDescription(
-				viper.GetString(FlagMoniker),
-				viper.GetString(FlagIdentity),
-				viper.GetString(FlagWebsite),
-				viper.GetString(FlagDetails),
-			)
-
-			// get the initial validator commission parameters
-			rateStr := viper.GetString(FlagCommissionRate)
-			maxRateStr := viper.GetString(FlagCommissionMaxRate)
-			maxChangeRateStr := viper.GetString(FlagCommissionMaxChangeRate)
-			commissionMsg, err := buildCommissionMsg(rateStr, maxRateStr, maxChangeRateStr)
-			if err != nil {
-				return err
-			}
-
-			var msg sdk.Msg
-			if viper.GetString(FlagAddressDelegator) != "" {
-				delAddr, err := sdk.AccAddressFromBech32(viper.GetString(FlagAddressDelegator))
-				if err != nil {
-					return err
-				}
-
-				msg = stake.NewMsgCreateValidatorOnBehalfOf(
-					delAddr, sdk.ValAddress(valAddr), pk, amount, description, commissionMsg,
-				)
-			} else {
-				msg = stake.NewMsgCreateValidator(
-					sdk.ValAddress(valAddr), pk, amount, description, commissionMsg,
-				)
-			}
-
-			if viper.GetBool(FlagGenesisFormat) {
-				ip := viper.GetString(FlagIP)
-				nodeID := viper.GetString(FlagNodeID)
-				if nodeID != "" && ip != "" {
-					txBldr = txBldr.WithMemo(fmt.Sprintf("%s@%s:26656", nodeID, ip))
-				}
 			}
 
 			if viper.GetBool(FlagGenesisFormat) || cliCtx.GenerateOnly {
@@ -305,4 +253,64 @@ func GetCmdUnbond(storeName string, cdc *codec.Codec) *cobra.Command {
 	cmd.Flags().AddFlagSet(fsValidator)
 
 	return cmd
+}
+
+func BuildCreateValidatorMsg(cliCtx context.CLIContext, txBldr authtxb.TxBuilder) (context.CLIContext, authtxb.TxBuilder, sdk.Msg, error) {
+	amounstStr := viper.GetString(FlagAmount)
+	amount, err := sdk.ParseCoin(amounstStr)
+	if err != nil {
+		return cliCtx, txBldr, nil, err
+	}
+
+	valAddr, err := cliCtx.GetFromAddress()
+	if err != nil {
+		return cliCtx, txBldr, nil, err
+	}
+
+	pkStr := viper.GetString(FlagPubKey)
+	pk, err := sdk.GetConsPubKeyBech32(pkStr)
+	if err != nil {
+		return cliCtx, txBldr, nil, err
+	}
+
+	description := stake.NewDescription(
+		viper.GetString(FlagMoniker),
+		viper.GetString(FlagIdentity),
+		viper.GetString(FlagWebsite),
+		viper.GetString(FlagDetails),
+	)
+
+	// get the initial validator commission parameters
+	rateStr := viper.GetString(FlagCommissionRate)
+	maxRateStr := viper.GetString(FlagCommissionMaxRate)
+	maxChangeRateStr := viper.GetString(FlagCommissionMaxChangeRate)
+	commissionMsg, err := buildCommissionMsg(rateStr, maxRateStr, maxChangeRateStr)
+	if err != nil {
+		return cliCtx, txBldr, nil, err
+	}
+
+	var msg sdk.Msg
+	if viper.GetString(FlagAddressDelegator) != "" {
+		delAddr, err := sdk.AccAddressFromBech32(viper.GetString(FlagAddressDelegator))
+		if err != nil {
+			return cliCtx, txBldr, nil, err
+		}
+
+		msg = stake.NewMsgCreateValidatorOnBehalfOf(
+			delAddr, sdk.ValAddress(valAddr), pk, amount, description, commissionMsg,
+		)
+	} else {
+		msg = stake.NewMsgCreateValidator(
+			sdk.ValAddress(valAddr), pk, amount, description, commissionMsg,
+		)
+	}
+
+	if viper.GetBool(FlagGenesisFormat) {
+		ip := viper.GetString(FlagIP)
+		nodeID := viper.GetString(FlagNodeID)
+		if nodeID != "" && ip != "" {
+			txBldr = txBldr.WithMemo(fmt.Sprintf("%s@%s:26656", nodeID, ip))
+		}
+	}
+	return cliCtx, txBldr, msg, nil
 }

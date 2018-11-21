@@ -101,7 +101,7 @@ func PrintUnsignedStdTx(w io.Writer, txBldr authtxb.TxBuilder, cliCtx context.CL
 	}
 	json, err := txBldr.Codec.MarshalJSON(stdTx)
 	if err == nil {
-		fmt.Fprintf(w,"%s\n", json)
+		fmt.Fprintf(w, "%s\n", json)
 	}
 	return
 }
